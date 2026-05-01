@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✋ Hand Scroll Controller</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+:root{
+  --bg:#0a0a0f;--surface:#12121a;--border:rgba(255,255,255,0.06);
+  --accent:#7cffb2;--accent2:#ff6fff;--accent3:#ffda4a;
+  --text:#e8e8f0;--muted:rgba(232,232,240,0.4);--card:rgba(255,255,255,0.04);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:400vh;overflow-x:hidden;}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(124,255,178,.03)1px,transparent 1px),
+    linear-gradient(90deg,rgba(124,255,178,.03)1px,transparent 1px);
+  background-size:40px 40px;
+}
+.wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:60px 32px;}
+
+/* 헤더 */
+.badge{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:3px;
+  color:var(--accent);text-transform:uppercase;
+  border:1px solid rgba(124,255,178,.2);padding:6px 14px;border-radius:2px;margin-bottom:24px;
+}
+.badge::before{content:'●';font-size:8px;animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+h1{font-size:clamp(36px,6vw,72px);font-weight:800;line-height:1.05;letter-spacing:-2px;}
+h1 em{font-style:normal;color:var(--accent);}
+h1 .dim{color:rgba(232,232,240,.25);}
+.subtitle{font-family:'DM Mono',monospace;font-size:13px;color:var(--muted);margin-top:16px;line-height:1.8;max-width:520px;}
+
+/* 제스처 카드 */
+.section-title{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:20px;margin-top:48px;}
+.gesture-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}
+.gcard{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:18px;transition:border-color .2s,background .2s;}
+.gcard:hover{border-color:rgba(124,255,178,.2);background:rgba(124,255,178,.04);}
+.gcard .icon{font-size:26px;margin-bottom:10px;display:block;}
+.gcard .name{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--accent);margin-bottom:4px;}
+.gcard .desc{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.6;}
+.gcard .key{display:inline-block;margin-top:8px;font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;border-radius:2px;background:rgba(255,255,255,.06);color:var(--muted);}
+
+/* 북마크릿 박스 */
+.bk-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:16px;}
+.bk-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:rgba(124,255,178,.04);}
+.bk-head span{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--accent);}
+.bk-drag{
+  display:block;padding:18px 22px;font-family:'DM Mono',monospace;font-size:12px;
+  color:rgba(124,255,178,.75);word-break:break-all;background:var(--card);
+  text-decoration:none;border-radius:4px;margin:14px;
+  border:2px dashed rgba(124,255,178,.25);cursor:grab;transition:border-color .2s,background .2s;
+}
+.bk-drag:hover{border-color:rgba(124,255,178,.6);background:rgba(124,255,178,.06);}
+.bk-steps{padding:0 20px 18px;font-family:'DM Mono',monospace;font-size:11px;line-height:2.2;color:var(--muted);list-style:none;counter-reset:step;}
+.bk-steps li{padding-left:22px;position:relative;counter-increment:step;}
+.bk-steps li::before{content:counter(step);position:absolute;left:0;color:var(--accent);font-weight:700;}
+
+/* 버튼 */
+.btn-row{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap;}
+.btn{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;padding:13px 26px;border-radius:4px;border:none;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px;}
+.btn-primary{background:var(--accent);color:#0a0a0f;}
+.btn-primary:hover{background:#a0ffcc;transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:rgba(255,255,255,.2);background:var(--card);}
+
+/* 데모 스크롤 콘텐츠 */
+.demo-section{margin-top:80px;padding:64px 0;border-top:1px solid var(--border);}
+.demo-title{font-size:clamp(22px,4vw,48px);font-weight:800;margin-bottom:18px;letter-spacing:-1px;}
+.demo-p{font-family:'DM Mono',monospace;font-size:13px;line-height:2;color:var(--muted);max-width:600px;margin-bottom:14px;}
+.demo-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:28px;}
+.demo-card{padding:26px;border-radius:6px;border:1px solid var(--border);background:var(--card);}
+.demo-card-num{font-size:44px;font-weight:800;line-height:1;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px;}
+.demo-card-title{font-size:15px;font-weight:700;margin-bottom:6px;}
+.demo-card-text{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);line-height:1.7;}
+
+/* ══ 컨트롤러 오버레이 (페이지에 내장) ══ */
+#hsc-panel{
+  position:fixed;top:16px;right:16px;z-index:9999;
+  width:230px;font-family:'DM Mono',monospace;
+  background:rgba(5,5,15,.93);border:1px solid rgba(124,255,178,.25);
+  border-radius:8px;overflow:hidden;backdrop-filter:blur(14px);
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+}
+#hsc-header{
+  padding:10px 14px;display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid rgba(255,255,255,.06);cursor:move;user-select:none;
+}
+#hsc-header span{font-size:10px;letter-spacing:2px;color:#7cffb2;}
+#hsc-cam-wrap{position:relative;width:230px;height:129px;background:#000;}
+#hsc-video{width:230px;height:129px;object-fit:cover;transform:scaleX(-1);display:block;opacity:.85;}
+#hsc-lm{position:absolute;top:0;left:0;width:230px;height:129px;transform:scaleX(-1);}
+#hsc-status{
+  padding:8px 14px;font-size:10px;letter-spacing:1px;
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+#hsc-gest{color:#7cffb2;font-weight:500;}
+#hsc-mode{color:rgba(255,255,255,.3);font-size:9px;}
+#hsc-hints{
+  padding:7px 14px 10px;font-size:9px;letter-spacing:.5px;
+  color:rgba(255,255,255,.25);line-height:2;
+}
+
+/* 커서 */
+#hsc-cursor{
+  position:fixed;z-index:9998;pointer-events:none;
+  width:30px;height:30px;margin-left:-15px;margin-top:-15px;
+  opacity:0;transition:opacity .2s,transform .1s;
+}
+
+/* 제스처 피드백 레이어 */
+#hsc-feedback{
+  position:fixed;inset:0;z-index:9997;pointer-events:none;
+  font-family:'DM Mono',monospace;
+}
+</style>
+</head>
+<body>
+
+<!-- ══ 컨트롤러 오버레이 (항상 표시) ══ -->
+<div id="hsc-panel">
+  <div id="hsc-header">
+    <span>✋ HAND SCROLL</span>
+  </div>
+  <div id="hsc-cam-wrap">
+    <video id="hsc-video" autoplay playsinline muted></video>
+    <canvas id="hsc-lm" width="230" height="129"></canvas>
+  </div>
+  <div id="hsc-status">
+    <span id="hsc-gest">LOADING...</span>
+    <span id="hsc-mode">—</span>
+  </div>
+  <div id="hsc-hints">
+    ☝️ POINT — scroll &nbsp;|&nbsp; ✊ FIST — drag<br>
+    🤌 PINCH — click &nbsp;|&nbsp; ✌️ V — zoom<br>
+    ✋ OPEN — stop scroll
+  </div>
+</div>
+
+<!-- 손 위치 커서 -->
+<div id="hsc-cursor">
+  <svg viewBox="0 0 30 30" fill="none">
+    <circle cx="15" cy="15" r="11" stroke="#7cffb2" stroke-width="1.5" opacity=".9"/>
+    <circle cx="15" cy="15" r="3.5" fill="#7cffb2"/>
+    <line x1="15" y1="0" x2="15" y2="8" stroke="#7cffb2" stroke-width="1" opacity=".5"/>
+    <line x1="15" y1="22" x2="15" y2="30" stroke="#7cffb2" stroke-width="1" opacity=".5"/>
+    <line x1="0" y1="15" x2="8" y2="15" stroke="#7cffb2" stroke-width="1" opacity=".5"/>
+    <line x1="22" y1="15" x2="30" y2="15" stroke="#7cffb2" stroke-width="1" opacity=".5"/>
+  </svg>
+</div>
+<div id="hsc-feedback"></div>
+
+<!-- ══ 페이지 콘텐츠 ══ -->
+<div class="wrap">
+  <header style="margin-bottom:56px;">
+    <div class="badge">Hand Gesture Controller</div>
+    <h1>Control<em> any</em><br><span class="dim">website</span><br>with your hands</h1>
+    <p class="subtitle">MediaPipe 기반 손 제스처로 스크롤·클릭·줌을 제어합니다.<br>북마크릿을 즐겨찾기에 추가하면 어느 사이트에서든 동작합니다.</p>
+  </header>
+
+  <div class="section-title">// gesture map</div>
+  <div class="gesture-grid">
+    <div class="gcard"><span class="icon">☝️</span><div class="name">SCROLL</div><div class="desc">검지로 위아래 움직여 스크롤. 가장자리일수록 빠름</div><span class="key">POINT</span></div>
+    <div class="gcard"><span class="icon">✊</span><div class="name">DRAG</div><div class="desc">주먹 쥔 채 이동으로 드래그 스크롤</div><span class="key">FIST</span></div>
+    <div class="gcard"><span class="icon">🤌</span><div class="name">CLICK</div><div class="desc">핀치로 커서 위치 클릭</div><span class="key">PINCH</span></div>
+    <div class="gcard"><span class="icon">✌️</span><div class="name">ZOOM</div><div class="desc">두 손가락 간격으로 줌 0.5×~3×</div><span class="key">V-SIGN</span></div>
+    <div class="gcard"><span class="icon">✋</span><div class="name">STOP</div><div class="desc">오픈 핸드로 스크롤 즉시 정지</div><span class="key">OPEN</span></div>
+    <div class="gcard"><span class="icon">🖐</span><div class="name">TOP/BTM</div><div class="desc">손 높이로 페이지 상단/하단 이동</div><span class="key">PALM Y</span></div>
+  </div>
+
+  <div class="section-title" style="margin-top:48px;">// bookmarklet — 다른 사이트에서 사용</div>
+  <div class="bk-box">
+    <div class="bk-head">
+      <span>DRAG TO BOOKMARKS BAR</span>
+      <span style="color:var(--muted);font-size:10px;">북마크바로 드래그</span>
+    </div>
+    <a id="bk-link" class="bk-drag" href="#">✋ Hand Scroll Controller</a>
+    <ol class="bk-steps">
+      <li>위 버튼을 브라우저 상단 북마크바로 드래그</li>
+      <li>원하는 웹사이트 (뉴스, 블로그 등) 으로 이동</li>
+      <li>북마크 클릭 → 오른쪽 상단에 패널 등장</li>
+      <li>카메라 허용 → 손 제스처 시작</li>
+    </ol>
+  </div>
+
+  <!-- 스크롤 테스트 콘텐츠 -->
+  <div class="demo-section">
+    <div class="demo-title">☝️ Point to<br><em style="color:var(--accent)">Scroll</em></div>
+    <p class="demo-p">검지 하나만 펴고 손을 위아래로 움직여보세요. 손이 화면 상단에 있을수록 빠르게 위로, 하단에 있을수록 빠르게 아래로 스크롤됩니다.</p>
+    <p class="demo-p">속도는 화면 중앙에서 0, 가장자리로 갈수록 비선형적으로 증가합니다.</p>
+    <div class="demo-cards">
+      <div class="demo-card"><div class="demo-card-num">01</div><div class="demo-card-title">Scroll Up</div><div class="demo-card-text">검지를 화면 상단 30% 영역으로 올리면 위로 스크롤</div></div>
+      <div class="demo-card"><div class="demo-card-num">02</div><div class="demo-card-title">Scroll Down</div><div class="demo-card-text">검지를 화면 하단 30% 영역으로 내리면 아래로 스크롤</div></div>
+      <div class="demo-card"><div class="demo-card-num">03</div><div class="demo-card-title">Speed Zone</div><div class="demo-card-text">화면 가장 끝으로 갈수록 최대 속도로 스크롤</div></div>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <div class="demo-title">✊ Fist to<br><em style="color:var(--accent2)">Drag</em></div>
+    <p class="demo-p">주먹을 쥐고 위아래로 이동하면 손의 이동 거리만큼 스크롤됩니다. 빠르게 움직이면 빠르게, 천천히 움직이면 천천히 스크롤됩니다.</p>
+    <div class="demo-cards">
+      <div class="demo-card"><div class="demo-card-num">04</div><div class="demo-card-title">Drag Scroll</div><div class="demo-card-text">주먹 위치가 이전 프레임보다 내려가면 아래로 스크롤</div></div>
+      <div class="demo-card"><div class="demo-card-num">05</div><div class="demo-card-title">Momentum</div><div class="demo-card-text">놓았을 때 관성으로 서서히 감속</div></div>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <div class="demo-title">🤌 Pinch to<br><em style="color:var(--accent3)">Click</em></div>
+    <p class="demo-p">엄지와 검지를 모아 핀치하면 현재 커서(검지 끝) 위치의 요소를 클릭합니다. 쿨다운이 있어 의도치 않은 중복 클릭을 방지합니다.</p>
+    <div class="demo-cards">
+      <div class="demo-card"><div class="demo-card-num">06</div><div class="demo-card-title">Pinch Click</div><div class="demo-card-text">검지 끝을 클릭하고 싶은 요소 위에 위치시킨 후 핀치</div></div>
+      <div class="demo-card"><div class="demo-card-num">07</div><div class="demo-card-title">Cooldown</div><div class="demo-card-text">핀치 후 0.5초간 재클릭 방지로 안정성 확보</div></div>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <div class="demo-title">✌️ V-Sign to<br><em style="color:#6bddff">Zoom</em></div>
+    <p class="demo-p">검지와 중지를 펴서 V자를 만들고, 두 손가락 간격으로 페이지 줌을 조절합니다. 간격이 넓어지면 줌 인, 좁아지면 줌 아웃됩니다.</p>
+    <div class="demo-cards">
+      <div class="demo-card"><div class="demo-card-num">08</div><div class="demo-card-title">Zoom In</div><div class="demo-card-text">V 손가락 간격 벌리기 → 최대 3× 확대</div></div>
+      <div class="demo-card"><div class="demo-card-num">09</div><div class="demo-card-title">Zoom Out</div><div class="demo-card-text">V 손가락 간격 좁히기 → 최소 0.5× 축소</div></div>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <div class="demo-title">🎉 끝까지<br><span style="color:rgba(232,232,240,.25)">도달했습니다</span></div>
+    <p class="demo-p">손 제스처만으로 이 페이지를 모두 스크롤했습니다!</p>
+    <p class="demo-p">북마크릿을 뉴스 사이트, 블로그, 쇼핑몰 등 어디서든 사용해보세요.</p>
+  </div>
+</div>
+
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script>
+'use strict';
+
+// ── 엘리먼트 ─────────────────────────────────────
+const videoEl  = document.getElementById('hsc-video');
+const lmCanvas = document.getElementById('hsc-lm');
+const lmCtx    = lmCanvas.getContext('2d');
+const cursorEl = document.getElementById('hsc-cursor');
+const gestEl   = document.getElementById('hsc-gest');
+const modeEl   = document.getElementById('hsc-mode');
+const fbEl     = document.getElementById('hsc-feedback');
+
+// 패널 드래그
+const panel = document.getElementById('hsc-panel');
+let dragging=false, ox=0, oy=0;
+document.getElementById('hsc-header').addEventListener('mousedown', e=>{
+  dragging=true; ox=e.clientX-panel.offsetLeft; oy=e.clientY-panel.offsetTop;
+});
+document.addEventListener('mousemove', e=>{
+  if(!dragging) return;
+  panel.style.right='auto';
+  panel.style.left=(e.clientX-ox)+'px';
+  panel.style.top=(e.clientY-oy)+'px';
+});
+document.addEventListener('mouseup', ()=>dragging=false);
+
+// ── 상태 ──────────────────────────────────────────
+let gesture='NONE', prevGesture='NONE';
+let scrollVel=0, zoomLevel=1;
+let prevIndexY=null, prevFistY=null, prevVDist=null;
+let pinchCooldown=0;
+
+function setUI(g, m, col){
+  gestEl.textContent=g;
+  gestEl.style.color=col||'#7cffb2';
+  modeEl.textContent=m||'';
+}
+
+// ── 피드백 플래시 ─────────────────────────────────
+function flash(txt, col){
+  const el=document.createElement('div');
+  el.style.cssText=`
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-family:'DM Mono',monospace;font-size:28px;font-weight:700;
+    color:${col||'#7cffb2'};letter-spacing:4px;
+    text-shadow:0 0 20px ${col||'#7cffb2'};
+    pointer-events:none;opacity:1;transition:opacity .4s;
+  `;
+  el.textContent=txt;
+  fbEl.appendChild(el);
+  requestAnimationFrame(()=>{
+    setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),400); },500);
+  });
+}
+
+// ── 제스처 분류 ───────────────────────────────────
+function fingerStates(lm){
+  const t=[8,12,16,20],p=[6,10,14,18],m2=[5,9,13,17];
+  return t.map((ti,i)=>lm[ti].y<lm[p[i]].y-.025 && lm[p[i]].y<lm[m2[i]].y+.04);
+}
+function classify(lm){
+  const pd=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y);
+  if(pd<.055) return 'PINCH';
+  const f=fingerStates(lm), n=f.filter(Boolean).length;
+  if(n===0) return 'FIST';
+  if(f[0]&&!f[1]&&!f[2]&&!f[3]) return 'POINT';
+  if(f[0]&&f[1]&&!f[2]&&!f[3]) return 'VSIGN';
+  if(n>=3) return 'OPEN';
+  return 'NEUTRAL';
+}
+
+// ── 좌표 변환 ─────────────────────────────────────
+function sc(lm, i){
+  return {
+    x: (1-lm[i].x)*window.innerWidth,
+    y: lm[i].y*window.innerHeight,
+  };
+}
+
+// ── 스켈레톤 그리기 ───────────────────────────────
+const CONN=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
+const TIPS=[4,8,12,16,20];
+const GC={POINT:'#7cffb2',OPEN:'#ff6fff',PINCH:'#ffda4a',FIST:'#ff6b6b',VSIGN:'#6bddff',NEUTRAL:'#aaaaaa',NONE:'#555'};
+
+function drawSkel(lm){
+  const w=lmCanvas.width, h=lmCanvas.height;
+  lmCtx.clearRect(0,0,w,h);
+  const col=GC[gesture]||'#7cffb2';
+  lmCtx.strokeStyle=col+'99'; lmCtx.lineWidth=1;
+  CONN.forEach(([a,b])=>{
+    lmCtx.beginPath();
+    lmCtx.moveTo(lm[a].x*w,lm[a].y*h);
+    lmCtx.lineTo(lm[b].x*w,lm[b].y*h);
+    lmCtx.stroke();
+  });
+  lm.forEach((_,i)=>{
+    const p=lm[i], tip=TIPS.includes(i);
+    lmCtx.beginPath();
+    lmCtx.arc(p.x*w,p.y*h,tip?4.5:2,0,Math.PI*2);
+    lmCtx.fillStyle=tip?col:'rgba(255,255,255,0.4)';
+    lmCtx.fill();
+  });
+  // 검지 끝 글로우
+  const idx=lm[8];
+  const grd=lmCtx.createRadialGradient(idx.x*w,idx.y*h,0,idx.x*w,idx.y*h,12);
+  grd.addColorStop(0,col+'cc'); grd.addColorStop(1,col+'00');
+  lmCtx.beginPath(); lmCtx.arc(idx.x*w,idx.y*h,12,0,Math.PI*2);
+  lmCtx.fillStyle=grd; lmCtx.fill();
+}
+
+// ── 제스처 적용 ───────────────────────────────────
+function applyGesture(lm){
+  prevGesture=gesture;
+  gesture=classify(lm);
+  const idxPt=sc(lm,8);
+
+  // 커서 위치
+  cursorEl.style.opacity='1';
+  cursorEl.style.left=idxPt.x+'px';
+  cursorEl.style.top=idxPt.y+'px';
+  cursorEl.querySelector('circle:last-of-type').style.fill=GC[gesture]||'#7cffb2';
+  cursorEl.querySelector('circle:first-of-type').style.stroke=GC[gesture]||'#7cffb2';
+
+  if(pinchCooldown>0) pinchCooldown--;
+
+  switch(gesture){
+
+    case 'POINT': {
+      // 검지 Y 위치로 스크롤 속도 결정 (비선형)
+      const ny=lm[8].y; // 0(상단)~1(하단)
+      const zone=ny-0.5; // -0.5~+0.5
+      scrollVel=zone*Math.abs(zone)*700; // 비선형: 가장자리일수록 급격히 빠름
+
+      // 직접 이동량도 반영
+      if(prevIndexY!==null){
+        const dy=(ny-prevIndexY)*window.innerHeight;
+        scrollVel=scrollVel*0.3 + dy*12*0.7;
+      }
+      prevIndexY=ny;
+      prevFistY=null;
+
+      const dir=zone>0.05?'▼':zone<-0.05?'▲':'■';
+      const spd=Math.abs(scrollVel)>200?'FAST':Math.abs(scrollVel)>50?'MED':'SLOW';
+      setUI('☝️  SCROLL', `${dir} ${spd}`, '#7cffb2');
+      break;
+    }
+
+    case 'FIST': {
+      const ny=lm[0].y;
+      if(prevFistY!==null){
+        const dy=(ny-prevFistY)*window.innerHeight;
+        scrollVel=dy*12;
+        window.scrollBy({top:scrollVel, behavior:'auto'});
+      }
+      prevFistY=ny;
+      prevIndexY=null;
+      setUI('✊  DRAG','', '#ff6b6b');
+      break;
+    }
+
+    case 'OPEN': {
+      scrollVel=0;
+      prevIndexY=null; prevFistY=null;
+      setUI('✋  STOP','', '#ff6fff');
+      break;
+    }
+
+    case 'PINCH': {
+      if(prevGesture!=='PINCH' && pinchCooldown===0){
+        const el=document.elementFromPoint(idxPt.x, idxPt.y);
+        if(el && el.id!=='hsc-panel' && !el.closest('#hsc-panel')){
+          el.click();
+          flash('CLICK', '#ffda4a');
+          cursorEl.style.transform='scale(2)';
+          setTimeout(()=>cursorEl.style.transform='scale(1)',200);
+        }
+        pinchCooldown=18;
+      }
+      setUI('🤌  CLICK','', '#ffda4a');
+      break;
+    }
+
+    case 'VSIGN': {
+      const d=Math.hypot(lm[8].x-lm[12].x, lm[8].y-lm[12].y);
+      if(prevVDist!==null){
+        const delta=(d-prevVDist)*6;
+        zoomLevel=Math.max(0.5, Math.min(3, zoomLevel+delta));
+        document.body.style.transform=`scale(${zoomLevel})`;
+        document.body.style.transformOrigin='top center';
+      }
+      prevVDist=d;
+      setUI('✌️  ZOOM', Math.round(zoomLevel*100)+'%', '#6bddff');
+      break;
+    }
+
+    default: {
+      prevIndexY=null; prevFistY=null; prevVDist=null;
+      scrollVel*=0.88;
+      setUI(gesture==='NEUTRAL'?'— NEUTRAL':'— NONE','', '#555');
+      break;
+    }
+  }
+
+  drawSkel(lm);
+}
+
+// ── 관성 스크롤 루프 ──────────────────────────────
+(function scrollLoop(){
+  requestAnimationFrame(scrollLoop);
+  if(gesture==='POINT' && Math.abs(scrollVel)>1){
+    window.scrollBy({top:scrollVel, behavior:'auto'});
+  }
+  if(gesture!=='POINT' && gesture!=='FIST'){
+    scrollVel*=0.86;
+  }
+})();
+
+// ── MediaPipe 초기화 ──────────────────────────────
+const handsMP=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+handsMP.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.75,minTrackingConfidence:.65});
+handsMP.onResults(res=>{
+  if(res.multiHandLandmarks?.length>0){
+    applyGesture(res.multiHandLandmarks[0]);
+  } else {
+    gesture='NONE';
+    cursorEl.style.opacity='0';
+    lmCtx.clearRect(0,0,lmCanvas.width,lmCanvas.height);
+    scrollVel*=0.88;
+    setUI('손을 보여주세요','', '#555');
+  }
+});
+
+// ── 카메라 시작 ───────────────────────────────────
+(async()=>{
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{width:640,height:360,facingMode:'user'}
+    });
+    videoEl.srcObject=stream;
+    new Camera(videoEl,{
+      onFrame:async()=>await handsMP.send({image:videoEl}),
+      width:640,height:360
+    }).start();
+    setUI('READY','손을 화면에 보여주세요','#7cffb2');
+  } catch(e){
+    setUI('카메라 오류','localhost에서 실행하세요','#ff6b6b');
+    console.error(e);
+  }
+})();
+
+// ══════════════════════════════════════════════════
+// 북마크릿 코드 생성
+// ══════════════════════════════════════════════════
+const BK=`(function(){
+if(document.getElementById('_hsc_p'))return;
+var p=document.createElement('div');
+p.id='_hsc_p';
+p.style.cssText='position:fixed;top:14px;right:14px;z-index:2147483647;width:220px;font-family:monospace;background:rgba(5,5,15,.93);border:1px solid rgba(124,255,178,.28);border-radius:8px;overflow:hidden;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.5);';
+p.innerHTML='<div id="_hsc_h" style="padding:9px 13px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.06);cursor:move;"><span style="font-size:10px;letter-spacing:2px;color:#7cffb2">✋ HAND SCROLL</span><button onclick="document.getElementById(\\'_hsc_p\\').remove();document.getElementById(\\'_hsc_c\\')&&document.getElementById(\\'_hsc_c\\').remove();" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:15px">×</button></div><div style="position:relative;"><video id="_hsc_v" autoplay muted playsinline style="width:220px;height:124px;object-fit:cover;transform:scaleX(-1);display:block;opacity:.85"></video><canvas id="_hsc_l" width="220" height="124" style="position:absolute;top:0;left:0;transform:scaleX(-1);"></canvas></div><div style="padding:8px 13px;font-size:10px;letter-spacing:1px;display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06);"><span id="_hsc_g" style="color:#7cffb2">LOADING...</span><span id="_hsc_m" style="color:rgba(255,255,255,.3);font-size:9px"></span></div><div style="padding:6px 13px 10px;font-size:9px;color:rgba(255,255,255,.25);line-height:2">☝️ scroll &nbsp; ✊ drag &nbsp; 🤌 click<br>✌️ zoom &nbsp; ✋ stop</div>';
+document.body.appendChild(p);
+var cur=document.createElement('div');
+cur.id='_hsc_c';
+cur.style.cssText='position:fixed;z-index:2147483646;pointer-events:none;width:28px;height:28px;margin:-14px 0 0 -14px;opacity:0;transition:opacity .2s;';
+cur.innerHTML='<svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="10" stroke="#7cffb2" stroke-width="1.5"/><circle cx="14" cy="14" r="3" fill="#7cffb2"/></svg>';
+document.body.appendChild(cur);
+var ox=0,oy=0,dr=false;
+document.getElementById('_hsc_h').onmousedown=function(e){dr=true;ox=e.clientX-p.offsetLeft;oy=e.clientY-p.offsetTop;};
+document.onmousemove=function(e){if(dr){p.style.right='auto';p.style.left=(e.clientX-ox)+'px';p.style.top=(e.clientY-oy)+'px';}};
+document.onmouseup=function(){dr=false;};
+var vel=0,piy=null,pfy=null,pvd=null,pc=0,zm=1,gest='',pg='';
+var lc=document.getElementById('_hsc_l').getContext('2d');
+var W=220,H=124;
+function fs(lm){var t=[8,12,16,20],pp=[6,10,14,18],m=[5,9,13,17];return t.map(function(ti,i){return lm[ti].y<lm[pp[i]].y-.025&&lm[pp[i]].y<lm[m[i]].y+.04;});}
+function cl(lm){var pd=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y);if(pd<.055)return'P';var f=fs(lm),n=f.filter(Boolean).length;if(n===0)return'F';if(f[0]&&!f[1]&&!f[2]&&!f[3])return'I';if(f[0]&&f[1]&&!f[2]&&!f[3])return'V';if(n>=3)return'O';return'N';}
+function ds(lm){lc.clearRect(0,0,W,H);var cn=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];var gc={I:'#7cffb2',O:'#ff6fff',P:'#ffda4a',F:'#ff6b6b',V:'#6bddff',N:'#aaa'};var col=gc[gest]||'#7cffb2';lc.strokeStyle=col+'99';lc.lineWidth=1;cn.forEach(function(ab){lc.beginPath();lc.moveTo(lm[ab[0]].x*W,lm[ab[0]].y*H);lc.lineTo(lm[ab[1]].x*W,lm[ab[1]].y*H);lc.stroke();});lm.forEach(function(p,i){lc.beginPath();lc.arc(p.x*W,p.y*H,[4,8,12,16,20].includes(i)?4:2,0,Math.PI*2);lc.fillStyle=[4,8,12,16,20].includes(i)?col:'rgba(255,255,255,.4)';lc.fill();});}
+function ag(lm){pg=gest;gest=cl(lm);var ix=(1-lm[8].x)*window.innerWidth,iy=lm[8].y*window.innerHeight;cur.style.opacity='1';cur.style.left=ix+'px';cur.style.top=iy+'px';if(pc>0)pc--;var gn=document.getElementById('_hsc_g'),mn=document.getElementById('_hsc_m');switch(gest){case'I':{var ny=lm[8].y,z=ny-.5;vel=z*Math.abs(z)*700;if(piy!==null){var dy=(ny-piy)*window.innerHeight;vel=vel*.3+dy*12*.7;}piy=ny;pfy=null;gn.textContent='☝️ SCROLL';gn.style.color='#7cffb2';mn.textContent=z>0.05?'▼':z<-0.05?'▲':'■';break;}case'F':{var ny2=lm[0].y;if(pfy!==null){var dy2=(ny2-pfy)*window.innerHeight;vel=dy2*12;window.scrollBy(0,vel);}pfy=ny2;piy=null;gn.textContent='✊ DRAG';gn.style.color='#ff6b6b';mn.textContent='';break;}case'O':{vel=0;piy=null;pfy=null;gn.textContent='✋ STOP';gn.style.color='#ff6fff';mn.textContent='';break;}case'P':{if(pg!=='P'&&pc===0){var el=document.elementFromPoint(ix,iy);if(el&&!el.closest('#_hsc_p')){el.click();}pc=18;}gn.textContent='🤌 CLICK';gn.style.color='#ffda4a';mn.textContent='';break;}case'V':{var d=Math.hypot(lm[8].x-lm[12].x,lm[8].y-lm[12].y);if(pvd!==null){var dlt=(d-pvd)*6;zm=Math.max(.5,Math.min(3,zm+dlt));document.body.style.transform='scale('+zm+')';document.body.style.transformOrigin='top center';}pvd=d;gn.textContent='✌️ ZOOM';gn.style.color='#6bddff';mn.textContent=Math.round(zm*100)+'%';break;}default:{piy=null;pfy=null;pvd=null;vel*=.88;gn.textContent='—';gn.style.color='#555';mn.textContent='';}}ds(lm);}
+(function sl(){requestAnimationFrame(sl);if(gest==='I'&&Math.abs(vel)>1)window.scrollBy(0,vel);if(gest!=='I'&&gest!=='F')vel*=.86;})();
+function ls(src,cb){var s=document.createElement('script');s.src=src;s.onload=cb;document.head.appendChild(s);}
+ls('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',function(){ls('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js',function(){var h=new Hands({locateFile:function(f){return'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+f;}});h.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.75,minTrackingConfidence:.65});h.onResults(function(r){if(r.multiHandLandmarks&&r.multiHandLandmarks.length>0){ag(r.multiHandLandmarks[0]);}else{gest='';cur.style.opacity='0';vel*=.88;lc.clearRect(0,0,W,H);document.getElementById('_hsc_g').textContent='손을 보여주세요';document.getElementById('_hsc_g').style.color='#555';}});navigator.mediaDevices.getUserMedia({video:{width:640,height:360,facingMode:'user'}}).then(function(s){var v=document.getElementById('_hsc_v');v.srcObject=s;var c=new Camera(v,{onFrame:async function(){await h.send({image:v});},width:640,height:360});c.start();document.getElementById('_hsc_g').textContent='READY';}).catch(function(){document.getElementById('_hsc_g').textContent='카메라 오류';});});});
+})();`;
+
+document.getElementById('bk-link').href='javascript:'+encodeURIComponent(BK);
+</script>
+</body>
+</html>
